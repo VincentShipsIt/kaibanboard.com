@@ -1,3 +1,4 @@
+@charset "UTF-8";
 * {
   margin: 0;
   padding: 0;
@@ -154,9 +155,7 @@ select.action-btn option {
   flex-direction: column;
   min-height: 0;
   border-left: 4px solid transparent;
-  transition:
-    opacity 0.2s,
-    transform 0.2s;
+  transition: opacity 0.2s, transform 0.2s;
 }
 
 .column.hidden {
@@ -210,7 +209,7 @@ select.action-btn option {
   color: var(--vscode-textLink-foreground);
 }
 
-.column-toggle input[type="checkbox"] {
+.column-toggle input[type=checkbox] {
   width: 16px;
   height: 16px;
   cursor: pointer;
@@ -236,12 +235,12 @@ select.action-btn option {
   text-decoration: underline;
 }
 
-.column[data-status="Backlog"] {
+.column[data-status=Backlog] {
   border-left-color: #6b7280;
   background: rgba(107, 114, 128, 0.05);
 }
 
-.column[data-status="Planning"] {
+.column[data-status=Planning] {
   border-left-color: #8b5cf6;
   background: rgba(139, 92, 246, 0.05);
 }
@@ -261,17 +260,17 @@ select.action-btn option {
   background: rgba(236, 72, 153, 0.05);
 }
 
-.column[data-status="Done"] {
+.column[data-status=Done] {
   border-left-color: #10b981;
   background: rgba(16, 185, 129, 0.05);
 }
 
-.column[data-status="Archived"] {
+.column[data-status=Archived] {
   border-left-color: #64748b;
   background: rgba(100, 116, 139, 0.05);
 }
 
-.column[data-status="Blocked"] {
+.column[data-status=Blocked] {
   border-left-color: #ef4444;
   background: rgba(239, 68, 68, 0.05);
 }
@@ -467,8 +466,7 @@ select.action-btn option {
 }
 
 @keyframes pulse {
-  0%,
-  100% {
+  0%, 100% {
     opacity: 1;
   }
   50% {
@@ -485,9 +483,7 @@ select.action-btn option {
   cursor: pointer;
   font-size: 12px;
   opacity: 0;
-  transition:
-    opacity 0.2s,
-    background 0.2s;
+  transition: opacity 0.2s, background 0.2s;
   margin-left: 8px;
   flex-shrink: 0;
 }
@@ -949,7 +945,7 @@ body.has-rate-limit-banner {
   cursor: pointer;
 }
 
-.provider-options input[type="checkbox"] {
+.provider-options input[type=checkbox] {
   width: 16px;
   height: 16px;
 }
@@ -1064,7 +1060,7 @@ body.has-rate-limit-banner {
   transition: transform 0.3s ease-in-out;
 }
 
-.prd-sidebar[data-visible="true"] {
+.prd-sidebar[data-visible=true] {
   transform: translateX(0);
 }
 
@@ -1280,9 +1276,7 @@ body.has-rate-limit-banner {
   padding: 3px 8px;
   font-size: 11px;
   cursor: pointer;
-  transition:
-    opacity 0.2s,
-    background 0.2s;
+  transition: opacity 0.2s, background 0.2s;
 }
 
 .play-all-btn:hover {
@@ -1366,7 +1360,7 @@ body.has-rate-limit-banner {
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.terminal-panel[data-visible="true"] {
+.terminal-panel[data-visible=true] {
   transform: translateY(0);
 }
 
@@ -1464,6 +1458,98 @@ body.has-rate-limit-banner {
   color: var(--vscode-descriptionForeground);
 }
 
+/* Terminal xterm container */
+.terminal-xterm-container {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  min-height: 0;
+}
+
+.terminal-xterm-container > div {
+  width: 100%;
+  height: 100%;
+}
+
+/* Terminal tabs */
+.terminal-tabs {
+  display: flex;
+  gap: 0;
+  background: var(--vscode-editorGroupHeader-tabsBackground, #252526);
+  border-bottom: 1px solid var(--vscode-panel-border);
+  overflow-x: auto;
+  flex-shrink: 0;
+  min-height: 30px;
+}
+
+.terminal-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--vscode-panel-border);
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.terminal-tab:hover {
+  background: var(--vscode-tab-hoverBackground, rgba(255, 255, 255, 0.05));
+}
+
+.terminal-tab.active {
+  background: var(--vscode-tab-activeBackground, var(--vscode-editor-background));
+  border-bottom: 2px solid var(--vscode-focusBorder, #007fd4);
+}
+
+.terminal-tab.running::before {
+  content: "⟳ ";
+  color: #4ec9b0;
+}
+
+.terminal-tab.done::before {
+  content: "✅ ";
+}
+
+.terminal-tab.failed::before {
+  content: "❌ ";
+}
+
+.terminal-tab-close {
+  margin-left: 4px;
+  font-size: 14px;
+  opacity: 0.5;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.terminal-tab-close:hover {
+  opacity: 1;
+}
+
+/* Terminal status indicator */
+.terminal-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.terminal-status.running {
+  color: #4ec9b0;
+}
+
+.terminal-status.done {
+  color: #73c991;
+}
+
+.terminal-status.failed {
+  color: #f48771;
+}
+
 /* Adjust board height when terminal is visible */
 .board.with-terminal {
   height: calc(100vh - 100px - 300px);
@@ -1476,9 +1562,7 @@ body.has-rate-limit-banner {
 /* Adjust terminal panel right edge when sidebar is visible */
 .terminal-panel.with-sidebar {
   right: 400px;
-  transition:
-    right 0.3s ease-in-out,
-    transform 0.3s ease-in-out;
+  transition: right 0.3s ease-in-out, transform 0.3s ease-in-out;
 }
 
 /* ============================================
@@ -1531,10 +1615,7 @@ body.has-rate-limit-banner {
   max-width: 0;
   overflow: hidden;
   opacity: 0;
-  transition:
-    max-width 0.3s ease,
-    opacity 0.2s ease,
-    padding 0.3s ease;
+  transition: max-width 0.3s ease, opacity 0.2s ease, padding 0.3s ease;
   padding-left: 0;
 }
 
@@ -1571,20 +1652,18 @@ body.has-rate-limit-banner {
 .quota-bar-fill {
   height: 100%;
   border-radius: 3px;
-  transition:
-    width 0.3s ease,
-    background-color 0.3s ease;
+  transition: width 0.3s ease, background-color 0.3s ease;
 }
 
-.quota-bar-fill[data-status="good"] {
+.quota-bar-fill[data-status=good] {
   background: #22c55e;
 }
 
-.quota-bar-fill[data-status="warning"] {
+.quota-bar-fill[data-status=warning] {
   background: #eab308;
 }
 
-.quota-bar-fill[data-status="critical"] {
+.quota-bar-fill[data-status=critical] {
   background: #ef4444;
 }
 
@@ -1596,15 +1675,15 @@ body.has-rate-limit-banner {
   color: var(--vscode-foreground);
 }
 
-.quota-value[data-status="good"] {
+.quota-value[data-status=good] {
   color: #22c55e;
 }
 
-.quota-value[data-status="warning"] {
+.quota-value[data-status=warning] {
   color: #eab308;
 }
 
-.quota-value[data-status="critical"] {
+.quota-value[data-status=critical] {
   color: #ef4444;
 }
 
@@ -1618,9 +1697,7 @@ body.has-rate-limit-banner {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition:
-    background 0.2s,
-    color 0.2s;
+  transition: background 0.2s, color 0.2s;
   flex-shrink: 0;
 }
 
@@ -1654,56 +1731,6 @@ body.has-rate-limit-banner {
 }
 
 .quota-sonnet-group.visible {
-  display: flex;
-}
-
-/* ============================================
-   Codex Quota Widget
-   ============================================ */
-.codex-quota-widget {
-  margin-left: 0;
-  margin-right: 8px;
-}
-
-.codex-quota-widget .quota-loading {
-  color: #a855f7;
-}
-
-.codex-label {
-  color: #a855f7;
-  font-weight: 700;
-}
-
-.codex-quota-widget .quota-bar-fill[data-status="good"] {
-  background: #a855f7;
-}
-
-.codex-quota-widget .quota-bar-fill[data-status="warning"] {
-  background: #eab308;
-}
-
-.codex-quota-widget .quota-bar-fill[data-status="critical"] {
-  background: #ef4444;
-}
-
-.codex-quota-widget .quota-value[data-status="good"] {
-  color: #a855f7;
-}
-
-.codex-quota-widget .quota-value[data-status="warning"] {
-  color: #eab308;
-}
-
-.codex-quota-widget .quota-value[data-status="critical"] {
-  color: #ef4444;
-}
-
-/* Codex review group - hidden by default, shown when data is available */
-.codex-review-group {
-  display: none;
-}
-
-.codex-review-group.visible {
   display: flex;
 }
 

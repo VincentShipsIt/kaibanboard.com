@@ -5,6 +5,7 @@ import { KanbanViewProvider } from "./kanbanView";
 import { ChangelogService } from "./services/changelogService";
 import { PRDInterviewService } from "./services/prdInterviewService";
 import { SkillService } from "./services/skillService";
+import { TerminalService } from "./services/terminalService";
 import { TaskParser } from "./taskParser";
 import type { ChangelogFormat } from "./types/changelog";
 import { getPRDBasePath, getTasksBasePath, getWorkspaceFolder } from "./utils/fileUtils";
@@ -34,7 +35,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   console.log("Kaiban Board extension activated");
 
-  kanbanView = new KanbanViewProvider(context);
+  const terminalService = new TerminalService();
+  kanbanView = new KanbanViewProvider(context, terminalService);
 
   // Register command to show board
   const showBoardCommand = vscode.commands.registerCommand("kaiban.showBoard", async () => {

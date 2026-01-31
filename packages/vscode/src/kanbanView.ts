@@ -10,6 +10,7 @@ import { GitService } from "./services/gitService";
 import { GitWorktreeService } from "./services/gitWorktreeService";
 import { PRDInterviewService } from "./services/prdInterviewService";
 import { SkillService } from "./services/skillService";
+import { TerminalService } from "./services/terminalService";
 import { TranscriptMonitorService } from "./services/transcriptMonitorService";
 import { type Task, TaskParser } from "./taskParser";
 import type { QuotaDisplayData } from "./types/claudeQuota";
@@ -38,6 +39,7 @@ export class KanbanViewProvider {
   private skipNextConfigRefresh = false;
   private quotaRefreshInterval: NodeJS.Timeout | undefined;
   private cachedCLIStatus: CLIAvailabilityStatus | null = null;
+  private terminalService: TerminalService;
 
   // New services for Auto-Claude features
   private gitWorktreeService: GitWorktreeService | null = null;
@@ -61,7 +63,10 @@ export class KanbanViewProvider {
   // Pipeline orchestration state
   private pipelineRetryCount: Map<string, number> = new Map();
 
-  constructor(private context: vscode.ExtensionContext) {
+  constructor(
+    private context: vscode.ExtensionContext,
+    terminalService?: TerminalService
+  ) {
     this.taskParser = new TaskParser();
     this.skillService = new SkillService();
     this.prdInterviewService = new PRDInterviewService();
@@ -69,6 +74,7 @@ export class KanbanViewProvider {
     this.codexQuotaService = new CodexQuotaService();
     this.cliDetectionService = new CLIDetectionService();
     this.transcriptMonitorService = new TranscriptMonitorService();
+    this.terminalService = terminalService || new TerminalService();
 
     // Initialize workspace-dependent services
     this.initializeWorkspaceServices();
@@ -162,6 +168,9 @@ export class KanbanViewProvider {
     }
     this.completionPollers.clear();
 
+    // Dispose embedded terminal processes
+    this.terminalService.dispose();
+
     // Dispose transcript monitors
     this.transcriptMonitorService.dispose();
 
@@ -191,8 +200,12 @@ export class KanbanViewProvider {
     );
 
     this.panel.onDidDispose(() => {
+      this.terminalService.setWebviewPanel(null);
       this.panel = undefined;
     });
+
+    // Wire terminal service to webview
+    this.terminalService.setWebviewPanel(this.panel);
 
     // Handle messages from webview
     this.panel.webview.onDidReceiveMessage(
@@ -335,6 +348,15 @@ export class KanbanViewProvider {
           // Project initialization handler
           case "initializeProject":
             await this.handleInitializeProject();
+            break;
+          case "terminal-input":
+            this.terminalService.sendInput(message.taskId, message.data);
+            break;
+          case "terminal-kill":
+            this.terminalService.kill(message.taskId);
+            break;
+          case "executeViaEmbeddedTerminal":
+            await this.handleExecuteViaEmbeddedTerminal(message.taskId, message.cliProvider);
             break;
         }
       },
@@ -666,6 +688,105 @@ export class KanbanViewProvider {
   /**
    * Execute task via specified CLI or auto-selected CLI
    */
+  /**
+   * Execute task via the embedded xterm.js terminal in the webview.
+   * Uses child_process instead of vscode.window.createTerminal.
+   */
+  private async handleExecuteViaEmbeddedTerminal(
+    taskId: string,
+    cliProvider?: CLIProviderName
+  ): Promise<void> {
+    try {
+      if (this.terminalService.isRunning(taskId)) {
+        vscode.window.showWarningMessage("Task is already running in embedded terminal.");
+        return;
+      }
+
+      const tasks = await this.taskParser.parseTasks();
+      const task = tasks.find((t) => t.id === taskId);
+      if (!task) throw new Error(`Task ${taskId} not found`);
+
+      const config = vscode.workspace.getConfiguration("kaiban");
+      const selectionMode = config.get<CLISelectionMode>("cli.defaultProvider", "auto");
+      const status =
+        this.cachedCLIStatus ||
+        (await this.cliDetectionService.getCLIAvailabilityStatus(selectionMode));
+
+      let selectedCLI: CLIProviderName | null = cliProvider || null;
+      if (!selectedCLI) {
+        if (!status.hasAvailableCLI || !status.selectedProvider) {
+          throw new Error("No CLI available.");
+        }
+        selectedCLI = status.selectedProvider;
+      }
+
+      const cliResult = status.clis.find((c) => c.name === selectedCLI);
+      if (!cliResult?.available) {
+        throw new Error(`${getCLIDisplayName(selectedCLI!)} is not available`);
+      }
+
+      const cliConfig = this.cliDetectionService.getCLIConfig(selectedCLI, {
+        get: <T>(key: string, defaultValue: T) => config.get<T>(key, defaultValue),
+      });
+
+      const taskInstruction = cliConfig.promptTemplate.replace("{taskFile}", task.filePath);
+      const flags = cliConfig.additionalFlags ? `${cliConfig.additionalFlags} ` : "";
+      let fullCommand: string;
+
+      if (selectedCLI === "claude") {
+        const useRalphLoop = config.get<boolean>("claude.useRalphLoop", false);
+        if (useRalphLoop) {
+          const ralphCommand = config.get<string>("ralph.command", "/ralph-loop:ralph-loop");
+          const maxIterations = config.get<number>("ralph.maxIterations", 5);
+          const completionPromise = config.get<string>("ralph.completionPromise", "TASK COMPLETE");
+          const ralphCmd = `${ralphCommand} "${taskInstruction}" --completion-promise "${completionPromise}" --max-iterations ${maxIterations}`;
+          fullCommand = `${cliConfig.executablePath} ${flags}"${ralphCmd}"`;
+        } else {
+          fullCommand = `${cliConfig.executablePath} ${flags}"${taskInstruction}"`;
+        }
+      } else {
+        fullCommand = `${cliConfig.executablePath} ${flags}"${taskInstruction}"`;
+      }
+
+      const workspaceFolders = vscode.workspace.workspaceFolders;
+      const cwd = workspaceFolders?.[0]?.uri.fsPath;
+
+      this.terminalService.start({
+        taskId,
+        label: task.label,
+        agent: getCLIDisplayName(selectedCLI),
+        command: fullCommand,
+        cwd,
+      });
+
+      if (task.status !== "AI Review") {
+        await this.taskParser.updateTaskStatus(taskId, "In Progress");
+      }
+
+      // Also track in claudeTerminals map for compatibility with existing stop/status logic
+      // We don't create a VS Code terminal, but we track running state
+      if (this.panel) {
+        this.panel.webview.postMessage({
+          command: "claudeExecutionStarted",
+          taskId,
+          cliProvider: selectedCLI,
+          embedded: true,
+        });
+      }
+
+      await this.refresh();
+    } catch (error) {
+      vscode.window.showErrorMessage(`Failed to execute in embedded terminal: ${error}`);
+      if (this.panel) {
+        this.panel.webview.postMessage({
+          command: "claudeExecutionError",
+          taskId,
+          error: String(error),
+        });
+      }
+    }
+  }
+
   private async handleExecuteViaCLI(taskId: string, cliProvider?: CLIProviderName): Promise<void> {
     try {
       // Check if task is already running
@@ -2434,6 +2555,18 @@ ${task.description ? `- Description: ${task.description}` : ""}`;
     const scriptUri = this.panel?.webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, "media", "kanban.js")
     );
+    const xtermCssUri = this.panel?.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, "media", "xterm.css")
+    );
+    const xtermJsUri = this.panel?.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, "media", "xterm.js")
+    );
+    const xtermFitUri = this.panel?.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, "media", "addon-fit.js")
+    );
+    const xtermWebLinksUri = this.panel?.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.context.extensionUri, "media", "addon-web-links.js")
+    );
 
     return `<!DOCTYPE html>
 <html lang="en">
@@ -2442,6 +2575,7 @@ ${task.description ? `- Description: ${task.description}` : ""}`;
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kanban Board</title>
   <link rel="stylesheet" href="${styleUri}">
+  <link rel="stylesheet" href="${xtermCssUri}">
 </head>
 <body>
     <div class="header">
@@ -2677,15 +2811,18 @@ ${allColumns
     <div class="terminal-panel" id="terminalPanel" style="display: none; visibility: hidden;">
       <div class="terminal-header">
         <div class="terminal-title">
-          <span>Terminal</span>
+          <span id="terminalHeaderTitle">Terminal</span>
+          <span class="terminal-status" id="terminalStatus"></span>
         </div>
         <div class="terminal-actions">
-          <button class="terminal-btn" id="terminalClearBtn" onclick="clearTerminal()" title="Clear terminal">Clear</button>
+          <button class="terminal-btn" id="terminalClearBtn" onclick="clearEmbeddedTerminal()" title="Clear terminal">Clear</button>
           <button class="terminal-btn" id="terminalToggleBtn" onclick="toggleTerminal()" title="Collapse/Expand terminal">−</button>
           <button class="terminal-btn" id="terminalCloseBtn" onclick="closeTerminal()" title="Close terminal">×</button>
         </div>
       </div>
-      <div class="terminal-content" id="terminalContent">
+      <div class="terminal-tabs" id="terminalTabs"></div>
+      <div class="terminal-xterm-container" id="terminalXtermContainer"></div>
+      <div class="terminal-content" id="terminalContent" style="display:none;">
         <div class="terminal-output-line info">Terminal ready. Execute commands to see output here.</div>
       </div>
     </div>
@@ -2726,7 +2863,192 @@ ${allColumns
       <button class="cancel-btn" onclick="cancelRateLimitWait()">Cancel</button>
     </div>
   </div>
+  <script src="${xtermJsUri}"></script>
+  <script src="${xtermFitUri}"></script>
+  <script src="${xtermWebLinksUri}"></script>
   <script src="${scriptUri}"></script>
+  <script>
+    // Embedded terminal management
+    (function() {
+      const vscodeApi = typeof acquireVsCodeApi !== 'undefined' ? acquireVsCodeApi() : null;
+      const terminals = {}; // taskId -> { term, fitAddon, container }
+      let activeTerminalId = null;
+
+      function getOrCreateTerminal(taskId, label, agent) {
+        if (terminals[taskId]) {
+          switchToTerminal(taskId);
+          return terminals[taskId];
+        }
+
+        const container = document.createElement('div');
+        container.id = 'xterm-' + taskId;
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.display = 'none';
+        document.getElementById('terminalXtermContainer').appendChild(container);
+
+        const term = new window.Terminal({
+          theme: {
+            background: '#1e1e1e',
+            foreground: '#d4d4d4',
+            cursor: '#d4d4d4',
+          },
+          fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+          fontSize: 13,
+          cursorBlink: true,
+          convertEol: true,
+        });
+
+        const fitAddon = new window.FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+
+        try {
+          const webLinksAddon = new window.WebLinksAddon.WebLinksAddon();
+          term.loadAddon(webLinksAddon);
+        } catch(e) { /* optional */ }
+
+        term.open(container);
+        fitAddon.fit();
+
+        // Send input back to extension
+        term.onData(function(data) {
+          if (vscodeApi) {
+            vscodeApi.postMessage({ command: 'terminal-input', taskId: taskId, data: data });
+          }
+        });
+
+        terminals[taskId] = { term, fitAddon, container, label, agent, exited: false, exitCode: null };
+        updateTerminalTabs();
+        switchToTerminal(taskId);
+
+        // Show terminal panel
+        const panel = document.getElementById('terminalPanel');
+        if (panel) {
+          panel.style.display = '';
+          panel.style.visibility = 'visible';
+        }
+
+        return terminals[taskId];
+      }
+
+      function switchToTerminal(taskId) {
+        for (const [id, t] of Object.entries(terminals)) {
+          t.container.style.display = id === taskId ? 'block' : 'none';
+        }
+        activeTerminalId = taskId;
+        const t = terminals[taskId];
+        if (t) {
+          t.fitAddon.fit();
+          document.getElementById('terminalHeaderTitle').textContent = t.label + ' — ' + t.agent;
+          const statusEl = document.getElementById('terminalStatus');
+          if (t.exited) {
+            statusEl.textContent = t.exitCode === 0 ? '✅ Done' : '❌ Failed (' + t.exitCode + ')';
+            statusEl.className = 'terminal-status ' + (t.exitCode === 0 ? 'done' : 'failed');
+          } else {
+            statusEl.textContent = '⟳ Running';
+            statusEl.className = 'terminal-status running';
+          }
+        }
+        updateTerminalTabs();
+      }
+
+      function updateTerminalTabs() {
+        const tabsEl = document.getElementById('terminalTabs');
+        if (!tabsEl) return;
+        tabsEl.innerHTML = '';
+        for (const [id, t] of Object.entries(terminals)) {
+          const tab = document.createElement('button');
+          tab.className = 'terminal-tab' + (id === activeTerminalId ? ' active' : '') + (t.exited ? (t.exitCode === 0 ? ' done' : ' failed') : ' running');
+          tab.textContent = t.label.substring(0, 20);
+          tab.title = t.label + ' (' + t.agent + ')';
+          tab.onclick = function() { switchToTerminal(id); };
+
+          const closeBtn = document.createElement('span');
+          closeBtn.className = 'terminal-tab-close';
+          closeBtn.textContent = '×';
+          closeBtn.onclick = function(e) {
+            e.stopPropagation();
+            removeTerminal(id);
+          };
+          tab.appendChild(closeBtn);
+          tabsEl.appendChild(tab);
+        }
+      }
+
+      function removeTerminal(taskId) {
+        const t = terminals[taskId];
+        if (!t) return;
+        if (!t.exited && vscodeApi) {
+          vscodeApi.postMessage({ command: 'terminal-kill', taskId: taskId });
+        }
+        t.term.dispose();
+        t.container.remove();
+        delete terminals[taskId];
+        if (activeTerminalId === taskId) {
+          const remaining = Object.keys(terminals);
+          if (remaining.length > 0) {
+            switchToTerminal(remaining[0]);
+          } else {
+            activeTerminalId = null;
+            const panel = document.getElementById('terminalPanel');
+            if (panel) {
+              panel.style.display = 'none';
+              panel.style.visibility = 'hidden';
+            }
+          }
+        }
+        updateTerminalTabs();
+      }
+
+      // Listen for messages from extension
+      window.addEventListener('message', function(event) {
+        const msg = event.data;
+        if (msg.command === 'terminal-started') {
+          getOrCreateTerminal(msg.taskId, msg.label, msg.agent);
+        } else if (msg.command === 'terminal-output') {
+          const t = terminals[msg.taskId];
+          if (t) t.term.write(msg.data);
+        } else if (msg.command === 'terminal-exit') {
+          const t = terminals[msg.taskId];
+          if (t) {
+            t.exited = true;
+            t.exitCode = msg.exitCode;
+            t.term.write('\\r\\n\\x1b[90m--- Process exited with code ' + msg.exitCode + ' ---\\x1b[0m\\r\\n');
+            if (activeTerminalId === msg.taskId) {
+              const statusEl = document.getElementById('terminalStatus');
+              if (msg.exitCode === 0) {
+                statusEl.textContent = '✅ Done';
+                statusEl.className = 'terminal-status done';
+              } else {
+                statusEl.textContent = '❌ Failed (' + msg.exitCode + ')';
+                statusEl.className = 'terminal-status failed';
+              }
+            }
+            updateTerminalTabs();
+          }
+        }
+      });
+
+      // Resize observer for fit
+      const resizeObserver = new ResizeObserver(function() {
+        if (activeTerminalId && terminals[activeTerminalId]) {
+          terminals[activeTerminalId].fitAddon.fit();
+        }
+      });
+      const xtermContainer = document.getElementById('terminalXtermContainer');
+      if (xtermContainer) resizeObserver.observe(xtermContainer);
+
+      // Expose clear function
+      window.clearEmbeddedTerminal = function() {
+        if (activeTerminalId && terminals[activeTerminalId]) {
+          terminals[activeTerminalId].term.clear();
+        }
+      };
+
+      // Expose for external use
+      window.embeddedTerminals = { getOrCreateTerminal, switchToTerminal, removeTerminal, terminals };
+    })();
+  </script>
 </body>
 </html>`;
   }
