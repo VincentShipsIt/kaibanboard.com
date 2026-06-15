@@ -90,6 +90,11 @@ jobs:
         if: env.VSCE_PAT != ''
         run: npx @vscode/vsce publish --packagePath ${{ steps.ext-info.outputs.vsix_path }}
 
+      - name: Ensure Open VSX namespace
+        run: npx ovsx create-namespace VincentShipsIt -p ${{ secrets.OVSX_PAT }} || true
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
       # Publish to Open VSX (Cursor marketplace)
       - name: Publish to Open VSX
         run: npx ovsx publish ${{ steps.ext-info.outputs.vsix_path }} -p ${{ secrets.OVSX_PAT }}
