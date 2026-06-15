@@ -112,7 +112,7 @@ Reads markdown files from `.agent/TASKS/`:
 
 For a graphical interface with drag-and-drop, install the Cursor extension:
 
-[Kaiban Board - Cursor Extension](https://marketplace.visualstudio.com/items?itemName=shipshitdev.kaibanboardcom)
+[Kaiban Board - Cursor Extension](https://open-vsx.org/extension/VincentShipsIt/kaibanboardcom)
 
 ## License
 

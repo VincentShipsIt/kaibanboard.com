@@ -7,12 +7,15 @@ on:
 
 jobs:
   publish:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -20,7 +23,7 @@ jobs:
           bun-version: latest
 
       - name: Setup Node.js (for npm publish)
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: "20"
           registry-url: "https://registry.npmjs.org"
@@ -31,10 +34,10 @@ jobs:
         run: echo "STORE_PATH=$(bun pm cache)" >> $GITHUB_OUTPUT
 
       - name: Setup bun cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.bun-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-bun-store-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-store-${{ hashFiles('**/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-store-
 
       - name: Install dependencies
@@ -48,10 +51,15 @@ jobs:
 
       # Publish @kaibanboard/cli to npm
       - name: Publish @kaibanboard/cli to npm
+        if: env.NPM_TOKEN != ''
         working-directory: packages/cli
         run: npm publish --access public
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ env.NPM_TOKEN }}
+
+      - name: Skip npm publish when token is missing
+        if: env.NPM_TOKEN == ''
+        run: echo "NPM_TOKEN is not configured; skipping @kaibanboard/cli publish."
 
       # Package VS Code extension
       - name: Package VS Code extension
@@ -65,7 +73,8 @@ jobs:
           NAME=$(jq -r .name package.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "name=$NAME" >> $GITHUB_OUTPUT
-          echo "vsix_path=packages/vscode/build/${NAME}-${VERSION}.vsix" >> $GITHUB_OUTPUT
+          VSIX_PATH=$(find build -maxdepth 1 -name "*.vsix" -print -quit)
+          echo "vsix_path=packages/vscode/${VSIX_PATH}" >> $GITHUB_OUTPUT
 
       - name: Verify VSIX exists
         run: |
@@ -78,9 +87,8 @@ jobs:
 
       # Publish to VS Code Marketplace
       - name: Publish to VS Code Marketplace
+        if: env.VSCE_PAT != ''
         run: npx @vscode/vsce publish --packagePath ${{ steps.ext-info.outputs.vsix_path }}
-        env:
-          VSCE_PAT: ${{ secrets.VSCE_PAT }}
 
       # Publish to Open VSX (Cursor marketplace)
       - name: Publish to Open VSX
@@ -88,8 +96,40 @@ jobs:
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
 
+      - name: Package old Open VSX compatibility path
+        if: steps.ext-info.outputs.version == '0.4.0'
+        working-directory: packages/vscode
+        run: |
+          cp package.json /tmp/kaiban-package.vincentshipsit.json
+          cp README.md /tmp/kaiban-README.vincentshipsit.md
+          restore_sources() {
+            mv -f /tmp/kaiban-package.vincentshipsit.json package.json
+            mv -f /tmp/kaiban-README.vincentshipsit.md README.md
+          }
+          trap restore_sources EXIT
+          node <<'NODE'
+          const fs = require("node:fs");
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          pkg.publisher = "shipshitdev";
+          pkg.description = "Compatibility package for Kaiban Board. This project has moved to VincentShipsIt/kaibanboard.com.";
+          fs.writeFileSync("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
+          fs.writeFileSync(
+            "README.md",
+            "# Kaiban Board has moved\n\nThis project has moved to VincentShipsIt/kaibanboard.com. This compatibility path will be removed on July 15, 2026.\n\nInstall the current extension from https://open-vsx.org/extension/VincentShipsIt/kaibanboardcom.\n"
+          );
+          NODE
+          npx @vscode/vsce package --no-dependencies --out build/shipshitdev.kaibanboardcom-${{ steps.ext-info.outputs.version }}.vsix
+          restore_sources
+          trap - EXIT
+
+      - name: Publish old Open VSX compatibility path
+        if: steps.ext-info.outputs.version == '0.4.0'
+        run: npx ovsx publish packages/vscode/build/shipshitdev.kaibanboardcom-${{ steps.ext-info.outputs.version }}.vsix -p ${{ secrets.OVSX_PAT }}
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+
       - name: Upload VSIX artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.ext-info.outputs.name }}-${{ steps.ext-info.outputs.version }}.vsix
           path: ${{ steps.ext-info.outputs.vsix_path }}
@@ -97,6 +137,6 @@ jobs:
 
       - name: Attach VSIX to release
         if: github.event_name == 'release'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ${{ steps.ext-info.outputs.vsix_path }}

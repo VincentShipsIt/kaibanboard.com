@@ -9,12 +9,12 @@ on:
 
 jobs:
   test:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -27,10 +27,10 @@ jobs:
         run: echo "STORE_PATH=$(bun pm cache)" >> $GITHUB_OUTPUT
 
       - name: Setup bun cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ steps.bun-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-bun-store-${{ hashFiles('**/bun.lockb') }}
+          key: ${{ runner.os }}-bun-store-${{ hashFiles('**/bun.lock') }}
           restore-keys: ${{ runner.os }}-bun-store-
 
       - name: Install dependencies
@@ -49,7 +49,7 @@ jobs:
         run: bun run package:vscode
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v7
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false

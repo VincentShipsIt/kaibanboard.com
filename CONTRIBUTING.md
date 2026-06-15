@@ -133,13 +133,14 @@ The extension is automatically published via GitHub Actions when a release is cr
    ```bash
    # Create an account at https://open-vsx.org
    # Go to Settings → Access Tokens → Generate New Token
-   npx ovsx create-namespace shipshitdev -p YOUR_TOKEN
+   npx ovsx create-namespace VincentShipsIt -p YOUR_TOKEN
    ```
 
 2. **Add GitHub Secrets**:
    - Go to repository Settings → Secrets and variables → Actions
    - Add these secrets:
-     - `OVSX_PAT`: Your Open VSX personal access token (required for Cursor marketplace)
+     - `NPM_TOKEN`: npm token for publishing `@kaibanboard/cli`
+     - `OVSX_PAT`: Your Open VSX personal access token (required for Cursor/Open VSX)
      - `VSCE_PAT`: VS Code Marketplace token (optional, for VS Code marketplace)
 
 3. **To get VS Code Marketplace token** (optional):
@@ -160,14 +161,18 @@ The extension is automatically published via GitHub Actions when a release is cr
 
 **Manual**:
 - Go to Actions → "Publish Extension" → "Run workflow"
-- Choose target: `openvsx`, `vscode`, or `both`
+
+The old `shipshitdev.kaibanboardcom` Open VSX path receives one final
+compatibility update for version `0.4.0`:
+
+> This project has moved to VincentShipsIt/kaibanboard.com. This compatibility path will be removed on July 15, 2026.
 
 ### Verification
 
 After publishing, verify the extension appears:
 - **Cursor**: Search "Kaiban Board" in Extensions (may take a few hours to sync)
-- **Open VSX**: https://open-vsx.org/extension/shipshitdev/kaibanboardcom
-- **VS Code**: https://marketplace.visualstudio.com/items?itemName=shipshitdev.kaibanboardcom
+- **Open VSX**: https://open-vsx.org/extension/VincentShipsIt/kaibanboardcom
+- **VS Code**: Configure `VSCE_PAT` and a personal Marketplace publisher before enabling Marketplace distribution
 
 ## Questions?
 
@@ -176,4 +181,3 @@ Feel free to open an issue for discussion or questions about contributing.
 ---
 
 Thank you for contributing to Kaiban Board! 🎉
-

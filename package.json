@@ -33,7 +33,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/shipshitdev/kaibanboard.com"
+    "url": "https://github.com/VincentShipsIt/kaibanboard.com"
   },
   "scripts": {
     "deps:update": "bunx npm-check-updates -u && bun install",

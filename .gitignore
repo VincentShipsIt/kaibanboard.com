@@ -4,6 +4,7 @@ build/
 dist/
 coverage/
 *.vsix
+*.tsbuildinfo
 .vscode-test/
 
 .DS_Store

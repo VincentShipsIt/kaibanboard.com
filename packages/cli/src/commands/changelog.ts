@@ -64,11 +64,11 @@ function getCompletedTasksSince(tasks: Task[], since?: string): Task[] {
   if (!since) return completed;
 
   const sinceDate = new Date(since);
-  if (isNaN(sinceDate.getTime())) return completed;
+  if (Number.isNaN(sinceDate.getTime())) return completed;
 
   return completed.filter((t) => {
     const taskDate = new Date(t.completedAt);
-    return !isNaN(taskDate.getTime()) && taskDate >= sinceDate;
+    return !Number.isNaN(taskDate.getTime()) && taskDate >= sinceDate;
   });
 }
 
@@ -261,7 +261,6 @@ export async function generateChangelog(
       case "markdown":
         content = formatMarkdown(entries, options.version);
         break;
-      case "keepachangelog":
       default:
         content = formatKeepAChangelog(entries, options.version);
         break;

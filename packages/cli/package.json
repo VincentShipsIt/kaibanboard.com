@@ -41,7 +41,7 @@
   "repository": {
     "directory": "packages/cli",
     "type": "git",
-    "url": "https://github.com/shipshitdev/kaibanboard.com"
+    "url": "https://github.com/VincentShipsIt/kaibanboard.com"
   },
   "scripts": {
     "build": "esbuild src/index.tsx --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js --banner:js=\"#!/usr/bin/env node\" --external:fsevents --external:react-devtools-core",

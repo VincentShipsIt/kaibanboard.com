@@ -9,15 +9,15 @@
 </p>
 
 <p align="center">
-  <a href="https://marketplace.visualstudio.com/items?itemName=shipshitdev.kaibanboardcom">
-    <img src="https://img.shields.io/visual-studio-marketplace/v/shipshitdev.kaibanboardcom?style=flat-square&logo=visualstudiocode&logoColor=white&label=Extension" alt="VS Code Marketplace">
+  <a href="https://open-vsx.org/extension/VincentShipsIt/kaibanboardcom">
+    <img src="https://img.shields.io/open-vsx/v/VincentShipsIt/kaibanboardcom?style=flat-square&logo=eclipseide&logoColor=white&label=Extension" alt="Open VSX">
   </a>
   <a href="https://www.npmjs.com/package/@kaibanboard/cli">
     <img src="https://img.shields.io/npm/v/@kaibanboard/cli?style=flat-square&logo=npm&logoColor=white&label=CLI" alt="npm">
   </a>
   <img src="https://img.shields.io/badge/status-production%20ready-brightgreen?style=flat-square" alt="Production Ready">
-  <a href="https://github.com/shipshitdev/kaibanboard.com/blob/master/LICENSE">
-    <img src="https://img.shields.io/github/license/shipshitdev/kaibanboard.com?style=flat-square" alt="License">
+  <a href="https://github.com/VincentShipsIt/kaibanboard.com/blob/master/LICENSE">
+    <img src="https://img.shields.io/github/license/VincentShipsIt/kaibanboard.com?style=flat-square" alt="License">
   </a>
 </p>
 
@@ -59,7 +59,7 @@ kai
 | Package | Description | Install |
 |---------|-------------|---------|
 | **[@kaibanboard/cli](./packages/cli)** | Interactive terminal TUI | `npm i -g @kaibanboard/cli` |
-| **[kaibanboardcom](./packages/vscode)** | Cursor/VS Code extension | [Marketplace](https://marketplace.visualstudio.com/items?itemName=shipshitdev.kaibanboardcom) |
+| **[kaibanboardcom](./packages/vscode)** | Cursor/VS Code extension | [Open VSX](https://open-vsx.org/extension/VincentShipsIt/kaibanboardcom) |
 | **@kaibanboard/core** | Shared types & parser | Internal |
 
 ---
@@ -165,6 +165,6 @@ MIT
 
 <p align="center">
   <a href="https://kaibanboard.com">kaibanboard.com</a> •
-  <a href="https://github.com/shipshitdev/kaibanboard.com/issues">Report Bug</a> •
-  <a href="https://github.com/shipshitdev/kaibanboard.com/issues">Request Feature</a>
+  <a href="https://github.com/VincentShipsIt/kaibanboard.com/issues">Report Bug</a> •
+  <a href="https://github.com/VincentShipsIt/kaibanboard.com/issues">Request Feature</a>
 </p>

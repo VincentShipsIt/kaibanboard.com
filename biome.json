@@ -17,6 +17,10 @@
       "!**/out",
       "!**/build",
       "!**/*.vsix",
+      "!packages/vscode/media/addon-*.js",
+      "!packages/vscode/media/styles.css",
+      "!packages/vscode/media/xterm.css",
+      "!packages/vscode/media/xterm.js",
       "!**/.husky"
     ],
     "maxSize": 1048576

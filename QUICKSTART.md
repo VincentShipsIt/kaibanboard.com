@@ -19,7 +19,7 @@ An AI-powered VS Code extension that:
 
 ```bash
 # Clone the repo first, then open it
-git clone https://github.com/shipshitdev/kaibanboard.com.git
+git clone https://github.com/VincentShipsIt/kaibanboard.com.git
 cd kaibanboard.com
 code .
 ```
@@ -160,8 +160,8 @@ When you're happy with it:
 ```bash
 cd kaibanboard.com
 bun install -g @vscode/vsce
-vsce package
-code --install-extension shipshitdev.kaibanboardcom-0.2.0.vsix
+bun run package:vscode
+code --install-extension packages/vscode/build/*.vsix
 ```
 
 Then it's available in ALL VS Code windows!
