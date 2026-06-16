@@ -1,0 +1,11 @@
+# gitleaks config — extends the default ruleset and allowlists vendored,
+# minified third-party bundles whose high-entropy minified identifiers trip
+# the generic-api-key rule as false positives (not real secrets).
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Vendored minified third-party assets (e.g. xterm.js) — false positives, not secrets"
+paths = [
+  '''packages/vscode/media/.*''',
+]
